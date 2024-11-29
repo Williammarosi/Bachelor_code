@@ -131,3 +131,14 @@ class NotUntil:
         self.operator1 = operator1
         self.operator2 = operator2
 
+
+class Aggreg:
+    def __init__(self, operator, var, group_vars, formula):
+        self.operator = operator  # The aggregation function (e.g., CNT, SUM, etc.)
+        self.var = var  # The variable to apply the aggregation on
+        self.group_vars = group_vars  # Variables to group by
+        self.formula = formula  # Inner formula
+
+    def __str__(self):
+        group_vars_str = ", ".join([v.name for v in self.group_vars])
+        return f"({self.var.name} <- {self.operator} {self.var.name}; {group_vars_str} {str(self.formula)})"

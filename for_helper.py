@@ -22,7 +22,7 @@ def form2str(par, h):
     elif isinstance(h, Var):
         # return string_of_var(h)
         return h.__str__()
-    
+
     elif isinstance(h, str):
         return h
 
@@ -88,12 +88,12 @@ class FormulaGenerator:
         self.size = size
         self.max_arity = sig.max_arity
         self.min_arity = sig.min_arity
-        self.upper_bound_fv = ub_fv
+        self.upper_bound_fv = 2 #sig.max_arity #ub_fv
         self.test_new_var = set([Var(f"x{i}") for i in range(1, self.upper_bound_fv+1)])
         self.y_counter = 0
         self.rng = random.Random()
         self.rng.seed(seed)
-        
+
         # todo: fix solution for this
         if self.upper_bound_fv < self.min_arity:
             print("__________\nWarning: upper bound of free variables is less than the minimum arity of predicates.")
@@ -101,20 +101,21 @@ class FormulaGenerator:
             self.upper_bound_fv = self.min_arity
             self.test_new_var = set([Var(f"x{i}") for i in range(1, self.upper_bound_fv+1)])
 
-        self.weights = {
-            'And': 1, 
-            'Or': 1, 
-            # 'Neg',
-            'Prev': 1, 
-            'Once': 1, 
-            'Since': 1, 
-            'Until': 1,
-            'Rand': 1, 
-            'Eand': 1, 
-            'Nand': 1,
-            'Exists': 1
-                # 'Since', 'Until'#, 'Prev', 'Once'
-        }
+        if weights is None:
+            self.weights = {
+                'And': 0.1, 
+                'Or': 0.1,
+                'Prev': 0.1, 
+                'Once': 0.1, 
+                'Since': 0.1, 
+                'Until': 0.1,
+                'Rand': 0.1, 
+                'Eand': 0.1, 
+                'Nand': 0.1,
+                'Exists': 0.1
+            }
+        else:
+            self.weights = weights 
 
     def random_var(self, n=1, fv=set()):
         """Return n variables."""
@@ -122,14 +123,19 @@ class FormulaGenerator:
             # Introduce new variables if needed
             fv = fv.union(self.test_new_var)
         fv = sorted(fv, key = lambda x: x.name)
-        a = self.rng.sample(fv, k=n)
+        if len(fv) < n:
+            frs = self.rng.sample(fv, k=len(fv))
+            snd = self.rng.sample(self.test_new_var, k=n-len(fv))
+            a = frs + snd
+        else:
+            a = self.rng.sample(fv, k=n)
         return a #self.rng.sample(fv, k=n)#test
 
     def random_pred(self, lb=0, ub=None, free_vars=None):
         """Return a Pred instance with variables."""
         if ub is None:
             ub = len(free_vars.union(self.test_new_var))
-        pred = self.rng.choice([p for p in self.sig.predicates if p.len >= lb and p.len <= ub])
+        pred = self.rng.choice([p for p in self.sig.predicates if p.len >= lb])# and p.len <= ub])
         if free_vars is None:# or free_vars == set():
             vars_in_pred = self.random_var(pred.len, self.test_new_var)
         else:
@@ -140,14 +146,14 @@ class FormulaGenerator:
         """Random constant."""
         return str(self.rng.randint(0, 100))
 
-    # todo: add bounds for the interval and allow inf
-    def random_interval(self):
+    # todo: add bounds for the interval and allow inf 
+    def random_interval(self, left_lb=0, left_ub=5, ub=20):
         """Random interval."""
-        start = self.rng.randint(0, 5)
-        end = self.rng.randint(start+1, start + 10)  # end >= start
+        start = self.rng.randint(left_lb, left_ub)
+        end = self.rng.randint(start+1, ub)  # end >= start
         return (start, end)
 
-    def generate(self, free_vars = None, size=None, rule=None):
+    def generate(self, free_vars = None, size=None):
         """Generate a random formula."""
         if free_vars is None:
             free_vars = set()
@@ -166,22 +172,22 @@ class FormulaGenerator:
                 subformula2, fv2 = self.generate(free_vars, new_size)
                 formula = And(subformula1, subformula2)
                 return formula, fv1.union(fv2)
-            
+
             elif formula_choice == 'Rand':
-                form, fv = self.generate_and_with_relation(free_vars)
-                return form, fv
-            
+                formula, fv = self.generate_and_with_relation(free_vars, size)
+                return formula, fv
+
             elif formula_choice == 'Eand':
-                form, fv = self.generate_and_with_equality(free_vars)
-                return form, fv
-            
+                formula, fv = self.generate_and_with_equality(free_vars, size)
+                return formula, fv
+
             elif formula_choice == 'Nand':
                 new_size = (size - 1) // 2
                 subformula1, fv1 = self.generate(free_vars, new_size)
                 subformula2, fv2 = self.generate(fv1.copy(), new_size)
                 if not fv2.issubset(fv1):
                     new_fv = fv2 - fv1
-                    subformula1, nfv = self.fix_And2(subformula1, new_fv, fv1.copy())#And(self.random_pred(lb=len(new_fv), free_vars=new_fv), subformula1)
+                    subformula1, nfv = self.fix_And2(subformula1, new_fv, fv1.copy())
                     fv1 = fv1.union(nfv)
                 formula = And(subformula1, Neg(subformula2))
                 return formula, fv1.union(fv2)
@@ -255,6 +261,7 @@ class FormulaGenerator:
     
     def fix_And2(self, f, fv, spare_vars=[]):
         """Fix the free variables with an And formula."""
+        print(f"Fixing And2: {form2str(False, f)}, {[v.name for v in fv]}")
         preds = []
         new_fv = set()
         if [p for p in self.sig.predicates if p.len >= len(fv) and p.len <= len(fv)+len(spare_vars)]!=[]:
@@ -271,19 +278,20 @@ class FormulaGenerator:
             new_fv = new_fv.union(pred.variables)
             out_form = And(pred, f)
             return self.fix_And2(out_form, (fv - new_fv), spare_vars)
-        else: 
+        else:
             pred = self.random_pred(lb=1, free_vars=fv)
             new_fv = new_fv.union(pred.variables)
             out_form = And(pred, f)
             return self.fix_And2(out_form, (fv - new_fv))
+        print(f"Returning fixed formula: {form2str(False, out_form)}")
         return out_form, fv.union(new_fv)
 
 
-    def generate_and_with_relation(self, free_vars):
+    def generate_and_with_relation(self, free_vars, size):
         """
         Generate a formula of the form alpha ∧ t1 R t2
         """
-        new_size = self.size - 1
+        new_size = size - 1
         # Generate alpha
         alpha_formula, fv_alpha = self.generate(free_vars, new_size)
         # Generate t1 R t2 with variables from fv_alpha or as a constant
@@ -306,11 +314,11 @@ class FormulaGenerator:
         formula = And(alpha_formula, relation_formula)
         return formula, fv_alpha
 
-    def generate_and_with_equality(self, free_vars):
+    def generate_and_with_equality(self, free_vars, size):
         """
         Generate a formula of the form alpha ∧ x = t
         """
-        new_size = self.size - 1
+        new_size = size - 1
         # Generate alpha
         alpha_formula, fv_alpha = self.generate(free_vars, new_size)
         t = self.random_var(fv = fv_alpha)[0]

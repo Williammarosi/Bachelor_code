@@ -2,10 +2,11 @@ import subprocess
 
 from sig_helper import *
 from for_helper import *
+# from for_helper_noAnd2 import *
 from log_helper import *
 
 ### Todo: Introduce interval_gen/max_leftbound/max_interval, aggr, nolet (gen_fma Arg)
-def main_gen(sigFile, num_predicates, max_arity, size, seed, forFile=None):
+def main_gen(sigFile, num_predicates, max_arity, size, prob, seed, forFile=None):
     """Generate random signature and formula"""
     if not seed:
         seed = random.randint(0, 100000)
@@ -15,15 +16,20 @@ def main_gen(sigFile, num_predicates, max_arity, size, seed, forFile=None):
         signature = f2sig(sigFile)
     else:
         signature = generate_signature(num_predicates, max_arity, seed)
-        sigClass = signature[1]
+    sigClass = signature[1]
 
     if forFile:
         with open(forFile, "r") as f:
             formula = f.read()
     else:
-        form = FormulaGenerator(signature[1], size, seed)
+        # try:
+        form = FormulaGenerator(signature[1], size, seed, weights=prob)
         formula = form.generate()[0]
-    return signature[1], formula
+        # except Exception as e:
+        #     print(f"Error: {e}")
+        #     print(f"For signature: {sigClass.__str__()}")
+        #     return
+    return sigClass, formula
 
 def main_print(signature, formula):
     """Print signature and formula"""
@@ -42,10 +48,10 @@ def main_file(signature, formula):
     form_str = form2str(True, formula)
     with open("test.sig", "w") as f:
         f.write(sig_str)
-    print(f".sig written to test.sig")
+    print(".sig written to test.sig")
     with open("test.mfotl", "w") as f:
         f.write(form_str)
-    print(f".mfotl written to test.mfotl")
+    print(".mfotl written to test.mfotl")
 
 def main_log(signature, out, i, e, q, r, length, seed):
     """Generate log"""
@@ -62,8 +68,52 @@ def check_monitorability():
     """Check if formula is monitorable"""
     sig_file = "test.sig"
     formula_file = "test.mfotl"
-    print()
+    print("–––––––––––––––––––––––––")
     # 'monpoly' command:
     monpoly_command = f"monpoly -sig {sig_file} -formula {formula_file} -check"
-    result = subprocess.run(monpoly_command, shell=True, check=True, stdout=subprocess.PIPE, # capture_output=True,
+    try:
+        subprocess.run(monpoly_command, shell=True, check=True, stdout=subprocess.PIPE, # capture_output=True,
                             text=True, executable="/bin/zsh")
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e}")
+
+def normalize_weights(updated_weights): #weights,
+    weights = {
+            'And': 0.1, 
+            'Or': 0.1,
+            'Prev': 0.1, 
+            'Once': 0.1, 
+            'Since': 0.1, 
+            'Until': 0.1,
+            'Rand': 0.1, 
+            'Eand': 0.1, 
+            'Nand': 0.1,
+            'Exists': 0.1,
+            'Aggreg': 0.1
+        }
+    # Calculate the total weight of updated operators
+    fixed_weight = sum(updated_weights.values())
+    if fixed_weight > 1:
+        print("The sum of the probabilities exceeds 1.")
+        for key, value in updated_weights.items():
+            updated_weights[key] = value / fixed_weight
+
+    # updated dict
+    for key, value in updated_weights.items():
+        weights[key] = value
+
+    # total weight of the remaining operators
+    remaining_weight = 1 - fixed_weight
+
+    # Get count of unchanged weights
+    count_other_weights = len([1 for key, value in weights.items() if key not in updated_weights])
+
+    # Normalize the remaining weights
+    for key in weights:
+        if key not in updated_weights:
+            weights[key] = remaining_weight / count_other_weights
+
+    # remove zero values for readability and negative values in case of wrong input
+    weights = {key: value for key, value in weights.items() if value > 0.0}
+
+    return weights
