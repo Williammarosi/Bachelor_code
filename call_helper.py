@@ -1,8 +1,8 @@
 import subprocess
 
 from sig_helper import *
-from for_helper import *
-# from for_helper_noAnd2 import *
+# from for_helper import *
+from for_helper_noAnd2 import *
 from log_helper import *
 
 ### Todo: Introduce interval_gen/max_leftbound/max_interval, aggr, nolet (gen_fma Arg)
