@@ -5,7 +5,7 @@ class Operator:
 class Var:
     def __init__(self, name):
         self.name = name
-    def __str__(self):
+    def __2str__(self):
         return self.name
 
 # Different Operators
@@ -23,7 +23,7 @@ class Pred(Operator):
         self.len = len(variables)
     def __2str__(self):
         if self.len > 0:
-            return f"{self.name}({', '.join(v.name for v in self.variables)})"
+            return f"{self.name}({','.join(v.name for v in self.variables)})"
         else:
             return f"{self.name}()"
 
@@ -133,12 +133,23 @@ class NotUntil:
 
 
 class Aggreg:
-    def __init__(self, operator, var, group_vars, formula):
+    def __init__(self, operator, y, z, group_vars, formula):
         self.operator = operator  # The aggregation function (e.g., CNT, SUM, etc.)
-        self.var = var  # The variable to apply the aggregation on
+        self.y = y
+        self.z = z  # The variable to apply the aggregation on
         self.group_vars = group_vars  # Variables to group by
         self.formula = formula  # Inner formula
 
     def __str__(self):
         group_vars_str = ", ".join([v.name for v in self.group_vars])
-        return f"({self.var.name} <- {self.operator} {self.var.name}; {group_vars_str} {str(self.formula)})"
+        return f"({self.y.name} <- {self.operator} {self.z.name}; {group_vars_str} {str(self.formula)})"
+
+class Let:
+    def __init__(self, pred, varlist, operator1, operator2):
+        self.predicate = pred
+        self.varlist = varlist
+        self.operator1 = operator1
+        self.operator2 = operator2
+
+    def __str__(self):
+        return f"LET {self.predicate.__str__()} = {self.operator1}\nIN {self.operator2}"

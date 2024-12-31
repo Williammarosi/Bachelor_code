@@ -59,8 +59,8 @@ weights = {
         'Exists': args.prob_exists,
     }
 ### Need to fix the aggregation operator first
-# if args.agg:
-    # weights['Aggreg'] = args.prob_aggreg
+if args.agg:
+    weights['Aggreg'] = args.prob_aggreg
 
 if args.prob_dict:
     # Check if the provided operators are in the weights
@@ -84,16 +84,16 @@ else:
                 'Eand': 0.1, 
                 'Nand': 0.1,
                 'Exists': 0.1,
-                'Aggreg': 0 #0.1 if args.agg else 0
+                'Aggreg': 0.1 if args.agg else 0,
+                'Let': 0.1
             }
         weights = normalize_weights(weights)
-        print(f"Updated weights: {weights}")
+        # print(f"Updated weights: {weights}")
     else:
         weights = normalize_weights(updated_weights)
-        print(f"Updated weights: {weights}")
+        # print(f"Updated weights: {weights}")
 
-
-print(f"Weights: {weights}")
+# print(f"Weights: {weights}")
 sig, form = main_gen(args.sig, args.pred, args.maxArity, args.size, weights, args.seed)
 
 main_print(sig, form)

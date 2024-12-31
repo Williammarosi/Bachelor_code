@@ -18,7 +18,7 @@ class Sig:
         self.max_arity = max([args.len for args in predicates])
         self.min_arity = min([args.len for args in predicates])
 
-    def __str__(self):
+    def __2str__(self):
         predi = []
         for pred in self.predicates:
             if pred.len > 0:
