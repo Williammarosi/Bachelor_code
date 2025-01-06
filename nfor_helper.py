@@ -1,91 +1,9 @@
 import random
+#### remove
 from pyfiglet import figlet_format # Temp. for error messages
+####
+
 from operators import *
-
-def check_interval(interval):
-    """Return string from tuple"""
-    return f"[{interval[0]},{interval[1]}]"
-
-def form2str(par, h):
-    """Convert formula to string"""
-    if par:
-        return f"({form2str(False, h)})"
-
-    # Predicate case
-    if isinstance(h, Pred):
-        return h.__2str__()
-
-    elif isinstance(h, Var):
-        return h.__2str__()
-
-    elif isinstance(h, str):
-        return h
-
-    # Equal case
-    elif isinstance(h, Equal):
-        return f"{form2str(False, h.var1)} = {form2str(False, h.var2)}"
-
-    # Less case
-    elif isinstance(h, Less):
-        return f"{form2str(False, h.var1)} < {form2str(False, h.var2)}"
-
-    # LessEq case
-    elif isinstance(h, LessEq):
-        return f"{form2str(False, h.var1)} <= {form2str(False, h.var2)}"
-
-    # Negation case
-    elif isinstance(h, Neg):
-        return f"NOT {form2str(True, h.operator)}"
-
-    # Exists case
-    elif isinstance(h, Exists):
-        return f"(EXISTS {h.var.__2str__()}. {form2str(True, h.operator)})"
-
-    # ForAll case
-    elif isinstance(h, ForAll):
-        return f"FORALL {h.var.__2str__()}. {form2str(True, h.operator)}"
-
-    # Prev case
-    elif isinstance(h, Prev):
-        return f"PREVIOUS{check_interval(h.interval)} {form2str(True, h.operator)}"
-
-    # Once case
-    elif isinstance(h, Once):
-        return f"ONCE{check_interval(h.interval)} {form2str(True, h.operator)}"
-
-    # And case
-    elif isinstance(h, And):
-        return f"{form2str(False, h.operator1)} AND {form2str(True, h.operator2)}"
-
-    # Or case
-    elif isinstance(h, Or):
-        return f"({form2str(False, h.operator1)} OR {form2str(True, h.operator2)})"
-
-    # Implies case
-    elif isinstance(h, Implies):
-        return f"{form2str(False, h.operator1)} IMPLIES {form2str(True, h.operator2)}"
-
-    # Since case
-    elif isinstance(h, Since):
-        return f"{form2str(False, h.operator1)} SINCE{check_interval(h.interval)} {form2str(True, h.operator2)}"
-
-    # Until case
-    elif isinstance(h, Until):
-        return f"{form2str(False, h.operator1)} UNTIL{check_interval(h.interval)} {form2str(True, h.operator2)}"
-
-    elif isinstance(h, Aggreg):
-        if isinstance(h.group_vars, Var):
-            group_vars_str = h.group_vars.name
-        else:
-            group_vars_str = ", ".join([v.name for v in h.group_vars])
-        return f"({h.y.name} <- {h.operator} {h.z.name}; {group_vars_str} {form2str(True, h.formula)})"
-
-    elif isinstance(h, Let):
-        return f"LET {h.predicate.__2str__()} = {form2str(True, h.operator1)}\nIN {form2str(True, h.operator2)}"
-
-    # Error case
-    else:
-        raise ValueError(f"Unsupported formula type: {type(h).__name__, h}")
 
 class FormulaGenerator:
     """
@@ -110,15 +28,15 @@ class FormulaGenerator:
         self.max_arity = sig.max_arity
         self.min_arity = sig.min_arity
         self.upper_bound_fv = sig.max_arity if ub_fv is None else ub_fv # sum([p.len for p in sig.predicates])
-        self.test_new_var = set([Var(f"x{i}") for i in range(1, max(2,self.upper_bound_fv+1))]) #max(2, )
+        self.all_variables = set([Var(f"x{i}") for i in range(1, max(2,self.upper_bound_fv+1))]) #max(2, )
         self.y_counter = 0
         self.z_counter = 0
-        self.seed = seed
         self.let_counter = 1
 
+        self.required_pred = set()
         self.no_empty = self.min_arity != 0
 
-        self.required_pred = set()
+        self.seed = seed
 
         self.rng = random.Random()
         if seed is None:
@@ -130,7 +48,7 @@ class FormulaGenerator:
             print("__________\nWarning: upper bound of free variables is less than the minimum arity of predicates.")
             print(f"Temporary fix: upping the upper bound of free variables to {self.min_arity}.\n__________")
             self.upper_bound_fv = self.min_arity
-            self.test_new_var = set([Var(f"x{i}") for i in range(1, self.upper_bound_fv+1)])
+            self.all_variables = set([Var(f"x{i}") for i in range(1, self.upper_bound_fv+1)])
 
         if weights is None:
             self.weights = {
@@ -161,14 +79,14 @@ class FormulaGenerator:
             lb = sorted(lb, key=lambda x: x.name)
 
         if ub is None:
-            ub = sorted(self.test_new_var, key=lambda x: x.name)
+            ub = sorted(self.all_variables, key=lambda x: x.name)
             ub += [v for v in lb if v not in ub]
             ub = sorted(ub, key=lambda x: x.name)
         else:
             ub = sorted(ub, key=lambda x: x.name)
         if len(lb) < n:
             if len(lb) == 0 and len(ub) == 0:
-                sorted_new_var = sorted(self.test_new_var, key=lambda x: x.name)
+                sorted_new_var = sorted(self.all_variables, key=lambda x: x.name)
                 return self.rng.sample(sorted_new_var, n) # [Var(f"k{i}") for i in range(n)]
             elif len(lb) == 0 and len(ub) >= n:
                 return self.rng.sample(ub, k=n)
@@ -195,7 +113,7 @@ class FormulaGenerator:
         if lb is None:
             lb = set()
         if ub is None:
-            ub = lb.union(self.test_new_var) if lb!=set() else self.test_new_var
+            ub = lb.union(self.all_variables) if lb!=set() else self.all_variables
 
         if len(self.required_pred) != 0 and len(ub) > 0:
             pred = self.rng.choice([p for p in self.sig.predicates if p in self.required_pred])
@@ -243,10 +161,10 @@ class FormulaGenerator:
         return str(self.rng.randint(0, 100))
 
     # todo: add bounds for the interval and allow inf
-    def random_interval(self, left_lb=0, left_ub=5, ub=20):
+    def random_interval(self, left_lb=0, left_ub=5, ub=30):
         """Random interval."""
         start = self.rng.randint(left_lb, left_ub)
-        end = self.rng.randint(start+1, ub)
+        end = self.rng.randint(start+5, ub)
         return (start, end)
 
     def generate(self, size=None, fv_lb = None, fv_ub = None):
@@ -256,7 +174,7 @@ class FormulaGenerator:
         if fv_lb is None:
             fv_lb = set()
         if fv_ub is None:
-            fv_ub = self.test_new_var.union(fv_lb)
+            fv_ub = self.all_variables.union(fv_lb)
         if len(fv_lb) == 0 and len(fv_ub) == 0 and self.no_empty:
             self.y_counter += 1
             var = Var(f"y{self.y_counter}")
@@ -530,14 +448,17 @@ def generate_aggregation(generator, size, lb, ub):
         z_var = Var(f"a{generator.z_counter}")
     else:
         z_var = generator.random_var(n=1, lb=potential_z, ub=potential_z)[0]
-    group_vars = set(generator.random_var(n=len(lb-{y_var}), lb = lb-{y_var}, ub=ub-{y_var}))
+    n_gv = generator.rng.randint(len(lb-{y_var}), len(ub-{y_var}))
+    group_vars = set(generator.random_var(n=n_gv, lb = lb-{y_var}, ub=ub-{y_var})) # n=len(lb-{y_var})
 
     subformula_lb = group_vars.union({z_var})-{y_var}
     subformula_ub = ub.union(subformula_lb.copy())-{y_var}
 
     subformula, _ = generator.generate(size - 1, fv_lb=subformula_lb.copy(), fv_ub=subformula_ub.copy())
-
-    agg_operator = generator.rng.choice(['CNT', 'SUM', 'MIN', 'MAX']) # 'MED', 'AVG'
+    op = ['CNT', 'SUM']
+    if len(group_vars) > 0:
+        op.extend(['MIN', 'MAX'])
+    agg_operator = generator.rng.choice(op)#['CNT', 'SUM', 'MIN', 'MAX']) # 'MED', 'AVG'
 
     formula = Aggreg(agg_operator, y_var, z_var, sorted(group_vars, key=lambda x: x.name), subformula)
     returning_vars = group_vars.union({y_var})
@@ -573,3 +494,93 @@ def generate_let(generator, size, lb, ub):
     formula2, fv2 = generator.generate((size-1)//2, fv_lb=lb, fv_ub=ub)
 
     return Let(pred, vars_in_pred, formula1, formula2), fv2
+
+
+
+
+### Functions for converting formulas to strings
+
+def check_interval(interval):
+    """Return string from tuple"""
+    return f"[{interval[0]},{interval[1]}]"
+
+def form2str(par, h):
+    """Convert formula to string"""
+    if par:
+        return f"({form2str(False, h)})"
+
+    # Predicate case
+    if isinstance(h, Pred):
+        return h.__2str__()
+
+    elif isinstance(h, Var):
+        return h.__2str__()
+
+    elif isinstance(h, str):
+        return h
+
+    # Equal case
+    elif isinstance(h, Equal):
+        return f"{form2str(False, h.var1)} = {form2str(False, h.var2)}"
+
+    # Less case
+    elif isinstance(h, Less):
+        return f"{form2str(False, h.var1)} < {form2str(False, h.var2)}"
+
+    # LessEq case
+    elif isinstance(h, LessEq):
+        return f"{form2str(False, h.var1)} <= {form2str(False, h.var2)}"
+
+    # Negation case
+    elif isinstance(h, Neg):
+        return f"NOT {form2str(True, h.operator)}"
+
+    # Exists case
+    elif isinstance(h, Exists):
+        return f"(EXISTS {h.var.__2str__()}. {form2str(True, h.operator)})"
+
+    # ForAll case
+    elif isinstance(h, ForAll):
+        return f"FORALL {h.var.__2str__()}. {form2str(True, h.operator)}"
+
+    # Prev case
+    elif isinstance(h, Prev):
+        return f"PREVIOUS{check_interval(h.interval)} {form2str(True, h.operator)}"
+
+    # Once case
+    elif isinstance(h, Once):
+        return f"ONCE{check_interval(h.interval)} {form2str(True, h.operator)}"
+
+    # And case
+    elif isinstance(h, And):
+        return f"{form2str(False, h.operator1)} AND {form2str(True, h.operator2)}"
+
+    # Or case
+    elif isinstance(h, Or):
+        return f"({form2str(False, h.operator1)} OR {form2str(True, h.operator2)})"
+
+    # Implies case
+    elif isinstance(h, Implies):
+        return f"{form2str(False, h.operator1)} IMPLIES {form2str(True, h.operator2)}"
+
+    # Since case
+    elif isinstance(h, Since):
+        return f"{form2str(False, h.operator1)} SINCE{check_interval(h.interval)} {form2str(True, h.operator2)}"
+
+    # Until case
+    elif isinstance(h, Until):
+        return f"{form2str(False, h.operator1)} UNTIL{check_interval(h.interval)} {form2str(True, h.operator2)}"
+
+    elif isinstance(h, Aggreg):
+        if isinstance(h.group_vars, Var):
+            group_vars_str = h.group_vars.name
+        else:
+            group_vars_str = ", ".join([v.name for v in h.group_vars])
+        return f"({h.y.name} <- {h.operator} {h.z.name}; {group_vars_str} {form2str(True, h.formula)})"
+
+    elif isinstance(h, Let):
+        return f"LET {h.predicate.__2str__()} = {form2str(True, h.operator1)}\nIN {form2str(True, h.operator2)}"
+
+    # Error case
+    else:
+        raise ValueError(f"Unsupported formula type: {type(h).__name__, h}")

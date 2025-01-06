@@ -35,7 +35,7 @@ class Sig:
         return Sig(predicates)
 
 
-def generate_signature(num_predicates, max_arity, seed):
+def generate_signature(num_predicates, max_arity, seed, nozero=False): # ):
     """
     Generate a random signature as a dictionary
     Arguments are of type int.
@@ -43,12 +43,16 @@ def generate_signature(num_predicates, max_arity, seed):
     rng = random.Random()
     rng.seed(seed)
     predicates = {}
+    if nozero:
+        min_arity = 1
+    else:
+        min_arity = 0
     for i in range(num_predicates):
         # Create predicate name of P0, P1,...
         predicate_name = f"P{i}"
 
         # number of arguments
-        arity = rng.randint(0, max_arity)
+        arity = rng.randint(min_arity, max_arity)
 
         # arguments list
         if arity > 0:
@@ -75,7 +79,7 @@ def f2sig(file):
 
     pattern = re.compile(r'(\w+)\(([^)]*)\)')
     matches = pattern.findall(content)
-    
+
     for name, args in matches:
         args_list = [arg.strip() for arg in args.split(',')] if args.strip() else []
 

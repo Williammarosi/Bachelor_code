@@ -15,7 +15,7 @@ log_parser = argparse.ArgumentParser(
 sig_parser = log_parser.add_mutually_exclusive_group()
 sig_parser.add_argument("-sig", type=str, help="signature file", metavar="<file>")
 # sig_arg = sig_parser.add_argument_group("If no signature file is provided")
-sig_parser.add_argument("-rnd_sig", nargs=2, default=[4, 4], help="pred arity", metavar="<int>")
+sig_parser.add_argument("-rnd_sig", nargs=2, type=int, default=[4, 4], help="pred arity", metavar="<int>")
 
 form_parser = log_parser.add_mutually_exclusive_group()
 form_parser.add_argument("-form", type=str, help="formula file", metavar="<file>")
@@ -28,6 +28,7 @@ log_parser.add_argument("-q", type=int, default=10, help="number of queries", me
 log_parser.add_argument("-l", "--len", type=int, default=20, help="length of log", metavar="<int>")
 log_parser.add_argument("-log", type=str, default="test.csv", help="output log file", metavar="<int>")
 log_parser.add_argument("-logseed", type=int, default=None, help="seed for log generation", metavar="<int>")
+log_parser.add_argument("-int_range", nargs=2, type=int, default=None, help="range of integers", metavar="<int> <int>")
 
 extra = log_parser.add_argument_group("Extra options")
 extra.add_argument("-seed", type=int, default=None, help="seed for random generation", metavar="<int>")
@@ -38,10 +39,11 @@ if (not args.sig) and args.form:
     print("Error: Signature file is required if formula file is provided. \n -h   Show help message\nExiting...")
     sys.exit(1)
 
-sig, form = main_gen(args.sig, args.rnd_sig[0], args.rnd_sig[1], args.rnd_form, args.seed, forFile=args.form)
+sig, form = main_gen(args.sig, args.rnd_sig[0], args.rnd_sig[1], args.rnd_form, None, None, args.seed, False, args.form)
+main_file(sig, form)
 
-main_print(sig, form)
+if args.sig is None:
+    main_print(sig, form)
 
-if args.log:
-    main_log(sig, out=args.log, i=args.i, e=args.e, r=args.r, q=args.q, length=args.len, seed=args.logseed)
+main_log(sig, args.log, args.i, args.e, args.q, args.r, args.len, args.logseed, args.int_range)
     # gen.to_csv('log.csv', index=False, header=False) # , sep=' '

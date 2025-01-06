@@ -17,6 +17,7 @@ formulaArgs = parser.add_argument_group("Formula generation arguments")
 gensig.add_argument("-pred", type=int, default=4, help="number of predicates if no signature file")
 gensig.add_argument("-A", "--maxArity", type=int, default=4, help="maximum arity if no signature file")
 gensig.add_argument("-sigout", type=str, help="output signature file", metavar="<file>")
+gensig.add_argument("-nozero", action="store_true", help="do not include 0-arity predicates")
 
 parser.add_argument("-sig", type=str, help="signature file", metavar="<file>")
 parser.add_argument("-o", action="store_true", help="write signature and formula to file")
@@ -25,6 +26,7 @@ parser.add_argument("-seed", type=int, default=None, help="seed for random gener
 
 formulaArgs.add_argument("-S", "--size", type=int, default=5, help="maximum depth of formula")
 formulaArgs.add_argument("-agg", action="store_true", help="allow aggregation operators")
+formulaArgs.add_argument("-fv_ub", type=int, default=None, help="upper bound of free variables")
 # formulaArgs.add_argument("-prob", type=list, default=[0.5], help="probability of operators (not implemented)")
 formulaArgs.add_argument("-for_out", type=str, help="output formula file", metavar="<file>")
 
@@ -41,6 +43,7 @@ prob.add_argument("-prob_rand", type=float, help="probability of rand operator")
 prob.add_argument("-prob_eand", type=float, help="probability of eand operator")
 prob.add_argument("-prob_nand", type=float, help="probability of nand operator")
 prob.add_argument("-prob_exists", type=float, help="probability of exists operator")
+prob.add_argument("-prob_let", type=float, help="probability of Let operator")
 prob.add_argument("-prob_aggreg", type=float, help="probability of Aggreg operator")
 
 
@@ -57,10 +60,14 @@ weights = {
         'Eand': args.prob_eand,
         'Nand': args.prob_nand,
         'Exists': args.prob_exists,
+        'Aggreg': args.prob_aggreg,
+        'Let': args.prob_let
     }
 ### Need to fix the aggregation operator first
-if args.agg:
-    weights['Aggreg'] = args.prob_aggreg
+if args.prob_aggreg is None and not args.agg:
+    weights['Aggreg'] = 0
+# if args.agg:
+#     weights['Aggreg'] = args.prob_aggreg
 
 if args.prob_dict:
     # Check if the provided operators are in the weights
@@ -73,6 +80,7 @@ else:
     updated_weights = {key: value for key, value in weights.items() if value is not None}
 
     if updated_weights == {}:
+        print("hello")
         weights = {
                 'And': 0.1, 
                 'Or': 0.1,
@@ -88,13 +96,11 @@ else:
                 'Let': 0.1
             }
         weights = normalize_weights(weights)
-        # print(f"Updated weights: {weights}")
     else:
         weights = normalize_weights(updated_weights)
-        # print(f"Updated weights: {weights}")
 
 # print(f"Weights: {weights}")
-sig, form = main_gen(args.sig, args.pred, args.maxArity, args.size, weights, args.seed)
+sig, form = main_gen(args.sig, args.pred, args.maxArity, args.size, weights, args.fv_ub, args.seed, args.nozero)
 
 main_print(sig, form)
 if args.o:

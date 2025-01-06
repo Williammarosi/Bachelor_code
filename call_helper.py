@@ -6,7 +6,7 @@ from nfor_helper import *
 from log_helper import *
 
 ### Todo: Introduce interval_gen/max_leftbound/max_interval, aggr, nolet (gen_fma Arg)
-def main_gen(sig_file, num_predicates, max_arity, size, prob, seed, for_file=None):
+def main_gen(sig_file, num_predicates, max_arity, size, prob, ub, seed, nozero, for_file=None):
     """Generate random signature and formula"""
     if not seed:
         seed = random.randint(0, 100000)
@@ -14,17 +14,19 @@ def main_gen(sig_file, num_predicates, max_arity, size, prob, seed, for_file=Non
     if sig_file:
         signature = f2sig(sig_file)
     else:
-        signature = generate_signature(num_predicates, max_arity, seed)
+        signature = generate_signature(num_predicates, max_arity, seed, nozero)
     sig_class = signature[1]
 
     if for_file:
         with open(for_file, "r") as f:
             formula = f.read()
     else:
-        form = FormulaGenerator(signature[1], size, seed, weights=prob)
-        formula = form.generate()[0]
+        form = FormulaGenerator(signature[1], size, seed, weights=prob, ub_fv=ub)
+        formula, a = form.generate()
+        print(f"Freee variables: {[b.name for b in a]}")
 
-    print(f"\n⎯⎯⎯⎯⎯ Seed: {seed} ⎯⎯⎯⎯⎯")
+    if sig_file is None and for_file is None:
+        print(f"\n⎯⎯⎯⎯⎯ Seed: {seed} ⎯⎯⎯⎯⎯")
     return sig_class, formula
 
 def main_print(signature, formula):
@@ -49,12 +51,12 @@ def main_file(signature, formula):
         f.write(form_str)
     print(".mfotl written to test.mfotl")
 
-def main_log(signature, out, i, e, q, r, length, seed):
+def main_log(signature, out, i, e, q, r, length, seed, int_range):
     """Generate log"""
     if not seed:
         seed = random.randint(0, 100000)
         print(f"⎯⎯⎯⎯⎯Log seed: {seed}⎯⎯⎯⎯⎯")
-    generator(signature, out, seed, i, e, q, r, length)
+    generator(signature, out, seed, i, e, q, r, length, int_range)
     print(f".CSV written to {out}.csv")
     convert_csv_to_log(out.replace('.log', '.csv'), out.replace('.csv', '.log'))
     print(f".log written to {out}.log")
