@@ -1,9 +1,5 @@
 import random
-#### remove
-from pyfiglet import figlet_format # Temp. for error messages
-####
-
-from operators import *
+from src.operators import *
 
 class FormulaGenerator:
     """
@@ -27,8 +23,8 @@ class FormulaGenerator:
         self.size = size
         self.max_arity = sig.max_arity
         self.min_arity = sig.min_arity
-        self.upper_bound_fv = sig.max_arity if ub_fv is None else ub_fv # sum([p.len for p in sig.predicates])
-        self.all_variables = set([Var(f"x{i}") for i in range(1, max(2,self.upper_bound_fv+1))]) #max(2, )
+        self.upper_bound_fv = sig.max_arity if ub_fv is None else ub_fv 
+        self.all_variables = set([Var(f"x{i}") for i in range(1, max(2,self.upper_bound_fv+1))]) 
         self.y_counter = 0
         self.z_counter = 0
         self.let_counter = 1
@@ -56,6 +52,8 @@ class FormulaGenerator:
                 'Or': 0.1,
                 'Prev': 0.1, 
                 'Once': 0.1, 
+                'Next': 0.1,
+                'Eventually': 0.1,
                 'Since': 0.1, 
                 'Until': 0.1,
                 'Rand': 0.1, 
@@ -68,7 +66,7 @@ class FormulaGenerator:
         else:
             self.weights = weights
 
-    def random_var(self, n=1, lb=None, ub=None):#, fv=set()):
+    def random_var(self, n=1, lb=None, ub=None):
         """
         Return n variables from a given free variable set.
         Ensures the number of variables respects the lower and upper bounds.
@@ -87,7 +85,7 @@ class FormulaGenerator:
         if len(lb) < n:
             if len(lb) == 0 and len(ub) == 0:
                 sorted_new_var = sorted(self.all_variables, key=lambda x: x.name)
-                return self.rng.sample(sorted_new_var, n) # [Var(f"k{i}") for i in range(n)]
+                return self.rng.sample(sorted_new_var, n)
             elif len(lb) == 0 and len(ub) >= n:
                 return self.rng.sample(ub, k=n)
             else:
@@ -160,11 +158,17 @@ class FormulaGenerator:
         """Random constant."""
         return str(self.rng.randint(0, 100))
 
-    # todo: add bounds for the interval and allow inf
-    def random_interval(self, left_lb=0, left_ub=5, ub=30):
+    def random_interval(self, left_lb=0, left_ub=5, delta=30, is_bound=False):
         """Random interval."""
         start = self.rng.randint(left_lb, left_ub)
-        end = self.rng.randint(start+5, ub)
+        if is_bound:
+            inf_intv = False
+        else:
+            inf_intv = self.rng.choice([True, False])
+        if inf_intv:
+            end = None
+        else:
+            end = self.rng.randint(start+1, start+delta)
         return (start, end)
 
     def generate(self, size=None, fv_lb = None, fv_ub = None):
@@ -212,7 +216,7 @@ class FormulaGenerator:
                 formula, fv = generate_since_until(self, size, fv_lb.copy(), fv_ub.copy(), formula_choice)
                 return formula, fv
 
-            elif formula_choice in ['Prev', 'Once']:
+            elif formula_choice in ['Prev', 'Once', 'Next', 'Eventually']:
                 formula, fv = generate_prev_once(self, size, fv_lb.copy(), fv_ub.copy(), formula_choice)
                 return formula, fv
 
@@ -230,20 +234,6 @@ class FormulaGenerator:
 
             else:
                 raise ValueError(f"Unknown formula type chosen: {formula_choice}")
-
-    def error_print(self, lb, ub, f, fv, f2, fv2, op):
-        """Fix the free variables with an And formula."""
-        print()
-        print(figlet_format(f'{self.seed}'))
-        print(figlet_format('Andfix Error', font='big'))
-        print(figlet_format(op, font='big'))
-        print(f"Lowerbound: {[v.name for v in lb]}\nUpperbound: {[v.name for v in ub]}")
-        print(f"First formula: {form2str(False, f)},\nFree_var: {[v.name for v in fv]}")
-        print(f"operator: {op}")
-        if f2 is not None:
-            print(f"Second formula: {form2str(False, f2)},\nFree_var: {[v.name for v in fv2]}\n\n")
-        if op in ['Rand', 'Eand']:
-            print(f"terms: {[v.name for v in fv2]}\n\n")
 
 def generate_and(generator, size, lb, ub):
     """
@@ -327,7 +317,7 @@ def generate_since_until(generator, size, lb, ub, op):
         Operator object: Since object or Until: Until object
     """
     new_size = (size - 1) // 2
-    interval = generator.random_interval()
+    interval = generator.random_interval(is_bound=op=='Until')
 
     subformula_beta, fv_beta = generator.generate(new_size, fv_lb=lb, fv_ub=ub)
     subformula_alpha, fv_alpha = generator.generate(new_size, fv_lb=set(), fv_ub=fv_beta.copy())
@@ -338,7 +328,7 @@ def generate_since_until(generator, size, lb, ub, op):
 
 def generate_prev_once(generator, size, lb, ub, op):
     """
-    Generate a Prev or Once formula
+    Generate a Prev, Once, Next, Eventually formula
     Prev formula or Once formula
     
     Args:
@@ -350,9 +340,16 @@ def generate_prev_once(generator, size, lb, ub, op):
     Returns:
         Operator object: Prev object or Once: Once object
     """
-    interval = generator.random_interval()
+    interval = generator.random_interval(is_bound=op in ['Eventually', 'Next'])
     subformula, fv = generator.generate(size - 1, fv_lb=lb, fv_ub=ub)
-    formula_class = Prev if op == 'Prev' else Once
+    if op == 'Prev':
+        formula_class = Prev
+    elif op == 'Once':
+        formula_class = Once
+    elif op == 'Eventually':
+        formula_class = Eventually
+    else:
+        formula_class = Next
     formula = formula_class(interval, subformula)
 
     return formula, fv
@@ -374,8 +371,7 @@ def generate_exists(generator, size, lb, ub):
     var = Var(f"y{generator.y_counter}")
     lb = lb.copy()
     ub = ub.copy()
-    if len(lb) < generator.max_arity and len(lb)+1 < len(ub):
-        lb.add(var)
+    lb.add(var)
     ub.add(var)
     subformula, fv = generator.generate(size - 1, fv_lb=lb, fv_ub=ub)
     formula = Exists(var, subformula)
@@ -449,7 +445,7 @@ def generate_aggregation(generator, size, lb, ub):
     else:
         z_var = generator.random_var(n=1, lb=potential_z, ub=potential_z)[0]
     n_gv = generator.rng.randint(len(lb-{y_var}), len(ub-{y_var}))
-    group_vars = set(generator.random_var(n=n_gv, lb = lb-{y_var}, ub=ub-{y_var})) # n=len(lb-{y_var})
+    group_vars = set(generator.random_var(n=n_gv, lb = lb-{y_var}, ub=ub-{y_var}))
 
     subformula_lb = group_vars.union({z_var})-{y_var}
     subformula_ub = ub.union(subformula_lb.copy())-{y_var}
@@ -458,7 +454,7 @@ def generate_aggregation(generator, size, lb, ub):
     op = ['CNT', 'SUM']
     if len(group_vars) > 0:
         op.extend(['MIN', 'MAX'])
-    agg_operator = generator.rng.choice(op)#['CNT', 'SUM', 'MIN', 'MAX']) # 'MED', 'AVG'
+    agg_operator = generator.rng.choice(op)# 'MED', 'AVG' not supported for integers
 
     formula = Aggreg(agg_operator, y_var, z_var, sorted(group_vars, key=lambda x: x.name), subformula)
     returning_vars = group_vars.union({y_var})
@@ -502,7 +498,10 @@ def generate_let(generator, size, lb, ub):
 
 def check_interval(interval):
     """Return string from tuple"""
-    return f"[{interval[0]},{interval[1]}]"
+    if interval[1] is None:
+        return f"[{interval[0]},*)"
+    else:
+        return f"[{interval[0]},{interval[1]}]"
 
 def form2str(par, h):
     """Convert formula to string"""
@@ -550,6 +549,14 @@ def form2str(par, h):
     # Once case
     elif isinstance(h, Once):
         return f"ONCE{check_interval(h.interval)} {form2str(True, h.operator)}"
+    
+    # Next case
+    elif isinstance(h, Next):
+        return f"NEXT{check_interval(h.interval)} {form2str(True, h.operator)}"
+    
+    # Eventually case
+    elif isinstance(h, Eventually):
+        return f"EVENTUALLY{check_interval(h.interval)} {form2str(True, h.operator)}"
 
     # And case
     elif isinstance(h, And):

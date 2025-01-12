@@ -9,12 +9,9 @@ from call_helper import *
 log_parser = argparse.ArgumentParser(
     prog='rnd_log',
     description="Generate logs",
-    # formatter_class=argparse.MetavarTypeHelpFormatter
-    # formatter_class=argparse.ArgumentDefaultsHelpFormatter
 )
 sig_parser = log_parser.add_mutually_exclusive_group()
 sig_parser.add_argument("-sig", type=str, help="signature file", metavar="<file>")
-# sig_arg = sig_parser.add_argument_group("If no signature file is provided")
 sig_parser.add_argument("-rnd_sig", nargs=2, type=int, default=[4, 4], help="pred arity", metavar="<int>")
 
 form_parser = log_parser.add_mutually_exclusive_group()
@@ -30,6 +27,8 @@ log_parser.add_argument("-log", type=str, default="test.csv", help="output log f
 log_parser.add_argument("-logseed", type=int, default=None, help="seed for log generation", metavar="<int>")
 log_parser.add_argument("-int_range", nargs=2, type=int, default=None, help="range of integers", metavar="<int> <int>")
 
+log_parser.add_argument("-out", type=str, default="test", help="output log file", metavar="<file>")
+
 extra = log_parser.add_argument_group("Extra options")
 extra.add_argument("-seed", type=int, default=None, help="seed for random generation", metavar="<int>")
 
@@ -40,10 +39,10 @@ if (not args.sig) and args.form:
     sys.exit(1)
 
 sig, form = main_gen(args.sig, args.rnd_sig[0], args.rnd_sig[1], args.rnd_form, None, None, args.seed, False, args.form)
-main_file(sig, form)
+if not args.sig and not args.form:
+    main_file(sig, form, args.out)
 
 if args.sig is None:
     main_print(sig, form)
 
 main_log(sig, args.log, args.i, args.e, args.q, args.r, args.len, args.logseed, args.int_range)
-    # gen.to_csv('log.csv', index=False, header=False) # , sep=' '

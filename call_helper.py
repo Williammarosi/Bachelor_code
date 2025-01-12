@@ -1,11 +1,10 @@
 import subprocess
 
-from sig_helper import *
-from nfor_helper import *
-# from for_helper import *
-from log_helper import *
+from src.sig_helper import *
+from src.for_helper import *
+from src.log_helper import *
 
-### Todo: Introduce interval_gen/max_leftbound/max_interval, aggr, nolet (gen_fma Arg)
+
 def main_gen(sig_file, num_predicates, max_arity, size, prob, ub, seed, nozero, for_file=None):
     """Generate random signature and formula"""
     if not seed:
@@ -22,8 +21,7 @@ def main_gen(sig_file, num_predicates, max_arity, size, prob, ub, seed, nozero, 
             formula = f.read()
     else:
         form = FormulaGenerator(signature[1], size, seed, weights=prob, ub_fv=ub)
-        formula, a = form.generate()
-        print(f"Freee variables: {[b.name for b in a]}")
+        formula, _ = form.generate()
 
     if sig_file is None and for_file is None:
         print(f"\n⎯⎯⎯⎯⎯ Seed: {seed} ⎯⎯⎯⎯⎯")
@@ -40,16 +38,14 @@ def main_print(signature, formula):
     st = f"\nSignature:\n{sig_str}\n\n{form_str}\n"
     print(st)
 
-def main_file(signature, formula):
+def main_file(signature, formula, out):
     """Write signature and formula to file"""
     sig_str = signature.__2str__()
     form_str = form2str(True, formula)
-    with open("test.sig", "w") as f:
+    with open(f"{out}.sig", "w+") as f:
         f.write(sig_str)
-    print(".sig written to test.sig")
-    with open("test.mfotl", "w") as f:
+    with open(f"{out}.mfotl", "w+") as f:
         f.write(form_str)
-    print(".mfotl written to test.mfotl")
 
 def main_log(signature, out, i, e, q, r, length, seed, int_range):
     """Generate log"""
@@ -57,23 +53,21 @@ def main_log(signature, out, i, e, q, r, length, seed, int_range):
         seed = random.randint(0, 100000)
         print(f"⎯⎯⎯⎯⎯Log seed: {seed}⎯⎯⎯⎯⎯")
     generator(signature, out, seed, i, e, q, r, length, int_range)
-    print(f".CSV written to {out}.csv")
-    convert_csv_to_log(out.replace('.log', '.csv'), out.replace('.csv', '.log'))
-    print(f".log written to {out}.log")
+    print(f".CSV written to {out}.csv, .log written to {out}.log")
 
 
-def check_monitorability():
-    """Check if formula is monitorable"""
-    sig_file = "test.sig"
-    formula_file = "test.mfotl"
-    print("⎯"*25)
-    # 'monpoly' command:
-    monpoly_command = f"monpoly -sig {sig_file} -formula {formula_file} -check"
-    try:
-        subprocess.run(monpoly_command, shell=True, check=True, stdout=subprocess.PIPE, # capture_output=True,
-                            text=True, executable="/bin/zsh")
-    except subprocess.CalledProcessError as e:
-        print(f"Error: {e}")
+# def check_monitorability(sig = "test.sig", form = "test.mfotl"):
+#     """Check if formula is monitorable"""
+#     sig_file = sig
+#     formula_file = form
+#     print("⎯"*25)
+#     # 'monpoly' command:
+#     monpoly_command = f"monpoly -sig {sig_file} -formula {formula_file} -check"
+#     try:
+#         subprocess.run(monpoly_command, shell=True, check=True, stdout=subprocess.PIPE, # capture_output=True,
+#                             text=True, executable="/bin/zsh")
+#     except subprocess.CalledProcessError as e:
+#         print(f"Error: {e}")
 
 def normalize_weights(updated_weights): 
     """
@@ -87,7 +81,9 @@ def normalize_weights(updated_weights):
             'And': 0.1, 
             'Or': 0.1,
             'Prev': 0.1, 
-            'Once': 0.1, 
+            'Once': 0.1,
+            'Next': 0.1,
+            'Eventually': 0.1,
             'Since': 0.1, 
             'Until': 0.1,
             'Rand': 0.1, 

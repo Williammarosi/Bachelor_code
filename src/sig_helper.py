@@ -1,14 +1,6 @@
 import random
 import re
-from operators import *
-
-# class Pred:
-#     def __init__(self, predicate, *variables):
-#         self.predicate = predicate
-#         self.name = str(predicate)
-#         self.variables = variables
-#         self.len = len(variables)
-
+from src.operators import *
 
 class Sig:
     def __init__(self, predicates):
