@@ -1,6 +1,6 @@
 # Random Log and Formula Generator
 
-This project generates random logs and formulas for testing purposes. It includes various scripts to generate signatures, formulas, and logs, as well as to check the monitorability of the generated formulas.
+This project generates random MFOTL formulas and logs for testing purposes. It includes various functions to generate signatures, formulas, and logs.
 
 ## Files Description
 
